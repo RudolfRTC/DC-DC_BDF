@@ -1,0 +1,11 @@
+# DC-DC Converter CAN Control Requirements
+
+# CAN bus communication
+python-can>=4.2.0
+cantools>=39.0.0
+
+# GUI (tkinter is usually included in Python)
+# If not available, install: python3-tk
+
+# Optional: For virtual CAN testing
+# vcan support is built into python-can
