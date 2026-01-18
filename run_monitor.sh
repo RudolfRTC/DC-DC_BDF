@@ -14,37 +14,49 @@ if ! command -v python3 &> /dev/null; then
 fi
 
 echo "✓ Python 3 found: $(python3 --version)"
-
-# Check if dependencies are installed
 echo ""
+
+# Check dependencies
 echo "Checking dependencies..."
+python3 check_dependencies.py
+DEPS_STATUS=$?
 
-if ! python3 -c "import can" 2>/dev/null; then
-    echo "⚠ python-can not installed"
-    echo "  Installing dependencies..."
-    pip3 install -r requirements.txt
-fi
-
-if ! python3 -c "import cantools" 2>/dev/null; then
-    echo "⚠ cantools not installed"
-    echo "  Installing dependencies..."
-    pip3 install -r requirements.txt
-fi
-
-echo "✓ All dependencies satisfied"
-echo ""
-
-# Check if CAN interface is available (optional)
-if command -v ip &> /dev/null; then
-    echo "Available CAN interfaces:"
-    ip link show | grep can || echo "  (No CAN interfaces found - will use virtual mode)"
+if [ $DEPS_STATUS -ne 0 ]; then
     echo ""
-fi
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    read -p "Do you want to run in DEMO mode? (y/n): " -n 1 -r
+    echo ""
 
-# Launch application
-echo "Starting DC-DC Monitor..."
-echo ""
-python3 dcdc_monitor.py
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo ""
+        echo "Starting DEMO mode..."
+        echo ""
+        python3 dcdc_monitor_demo.py
+    else
+        echo ""
+        echo "Please install dependencies first:"
+        echo "  sudo apt-get install python3-tk"
+        echo "  pip3 install python-can cantools"
+        echo ""
+        echo "Or run manually:"
+        echo "  python3 dcdc_monitor_demo.py  (demo mode)"
+        exit 1
+    fi
+else
+    echo ""
+    # Check if CAN interface is available (optional)
+    if command -v ip &> /dev/null; then
+        echo "Available CAN interfaces:"
+        ip link show | grep can || echo "  (No CAN interfaces found - will use virtual mode)"
+        echo ""
+    fi
+
+    # Launch full application
+    echo "Starting DC-DC Monitor (full version)..."
+    echo ""
+    python3 dcdc_monitor.py
+fi
 
 echo ""
 echo "Application closed."

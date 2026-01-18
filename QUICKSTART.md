@@ -1,16 +1,38 @@
 # 🚀 HITRI ZAČETEK / QUICK START
 
-## 5-minutna nastavitev
+## 🎯 INSTANT START (30 sekund) - BREZ odvisnosti!
+
+```bash
+# Command-line monitor (deluje TAKOJ)
+python3 dcdc_monitor_cli.py
+```
+**✓ Deluje takoj, brez namestitve!**
+
+---
+
+## 🖥️ GUI Demo Mode (1 minuta)
+
+```bash
+# Preveri odvisnosti
+python3 check_dependencies.py
+
+# GUI demo (potrebuje tkinter)
+python3 dcdc_monitor_demo.py
+```
+
+---
+
+## 🚀 Polna verzija (5 minut)
 
 ### 1️⃣ Namestitev (1 minuta)
 
 ```bash
 # Namesti odvisnosti
 pip3 install python-can cantools
+sudo apt-get install python3-tk
 
 # Preveri namestitev
-python3 --version
-python3 -c "import can, cantools; print('✓ OK')"
+python3 check_dependencies.py
 ```
 
 ### 2️⃣ Nastavitev virtualnega CAN vmesnika (1 minuta)
@@ -25,10 +47,10 @@ sudo ip link set up vcan0
 ### 3️⃣ Zagon aplikacije (1 minuta)
 
 ```bash
-# Možnost 1: Uporabi launcher
+# Avtomatski launcher (priporoča se)
 ./run_monitor.sh
 
-# Možnost 2: Direktno
+# Ali direktno
 python3 dcdc_monitor.py
 ```
 
