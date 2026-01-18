@@ -6,14 +6,11 @@ Real-time monitoring and control for TAME-POWER DC-DC converters via CAN bus
 
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
-import json
-import csv
 from datetime import datetime
 from pathlib import Path
 import threading
 import queue
 from typing import Dict, List, Optional
-import cantools
 from can_handler import CANBusHandler, CANMessage
 from data_logger import DataLogger
 from config_manager import ConfigManager
@@ -43,6 +40,11 @@ class DCDCMonitorApp:
         # UI state
         self.is_monitoring = False
         self.selected_converter = 'DCDC_Primary'
+        self.message_count = 0
+        self.receiver_thread = None
+
+        # Overview tab widgets
+        self.overview_widgets = {}
 
         # Build UI
         self.setup_ui()
@@ -268,6 +270,9 @@ class DCDCMonitorApp:
             info_text.insert('1.0', f"{converter_name}\n\nWaiting for data...")
             info_text.config(state=tk.DISABLED)
 
+            # Store reference for updates
+            self.overview_widgets[converter_name] = info_text
+
         self.overview_tab.columnconfigure(0, weight=1)
         self.overview_tab.columnconfigure(1, weight=1)
         self.overview_tab.columnconfigure(2, weight=1)
@@ -336,6 +341,11 @@ class DCDCMonitorApp:
     def stop_monitoring(self):
         """Stop CAN bus monitoring"""
         self.is_monitoring = False
+
+        # Wait for receiver thread to finish
+        if self.receiver_thread and self.receiver_thread.is_alive():
+            self.receiver_thread.join(timeout=1.0)
+
         self.can_handler.disconnect()
 
         # Update UI
@@ -378,9 +388,17 @@ class DCDCMonitorApp:
             if converter:
                 self.converter_data[converter].update(message.data)
 
+                # Log data if logging is active
+                if self.data_logger.is_logging:
+                    self.data_logger.log_data(converter, message.can_id, message.name, message.data)
+
         # Update displays if showing this converter
         if self.identify_converter(message.can_id) == self.selected_converter:
             self.update_parameter_display(message.data)
+
+        # Update overview display (throttled to every 10th message to reduce CPU)
+        if self.message_count % 10 == 0:
+            self.update_overview_display()
 
     def add_message_to_log(self, message: CANMessage):
         """Add message to the log display"""
@@ -390,6 +408,10 @@ class DCDCMonitorApp:
                             values=(timestamp, hex(message.can_id), message.name,
                                    message.data_hex))
 
+        # Update message counter
+        self.message_count += 1
+        self.msg_count_label.config(text=f"Messages: {self.message_count}")
+
         # Keep only last 100 messages
         children = self.msg_tree.get_children()
         if len(children) > 100:
@@ -397,12 +419,36 @@ class DCDCMonitorApp:
 
     def update_parameter_display(self, data: Dict):
         """Update parameter display with new data"""
+        if not data:
+            return
+
         for key, value in data.items():
             if key in self.param_labels:
                 if isinstance(value, float):
                     self.param_labels[key].config(text=f"{value:.2f}")
                 else:
                     self.param_labels[key].config(text=str(value))
+
+    def update_overview_display(self):
+        """Update overview tab with all converter data"""
+        for converter_name, data in self.converter_data.items():
+            if converter_name in self.overview_widgets and data:
+                text_widget = self.overview_widgets[converter_name]
+
+                # Build display text
+                display_text = f"{converter_name}\n{'='*30}\n\n"
+                display_text += f"Input:  {data.get('input_voltage', '--'):.1f}V  {data.get('input_current', '--'):.1f}A\n" if 'input_voltage' in data else "Input:  --\n"
+                display_text += f"Output: {data.get('output_voltage', '--'):.1f}V  {data.get('output_current', '--'):.1f}A\n" if 'output_voltage' in data else "Output: --\n"
+                display_text += f"Power:  {data.get('output_power', '--'):.0f}W\n" if 'output_power' in data else "Power:  --\n"
+                display_text += f"Eff:    {data.get('efficiency', '--'):.1f}%\n" if 'efficiency' in data else "Eff:    --\n"
+                display_text += f"Temp:   {data.get('temp_1', '--'):.0f}°C / {data.get('temp_2', '--'):.0f}°C\n" if 'temp_1' in data else "Temp:   --\n"
+                display_text += f"Status: {data.get('status', 'Unknown')}\n"
+
+                # Update text widget
+                text_widget.config(state=tk.NORMAL)
+                text_widget.delete('1.0', tk.END)
+                text_widget.insert('1.0', display_text)
+                text_widget.config(state=tk.DISABLED)
 
     def identify_converter(self, can_id: int) -> Optional[str]:
         """Identify which converter a CAN ID belongs to"""
@@ -432,6 +478,10 @@ class DCDCMonitorApp:
         """Clear all displays"""
         for item in self.msg_tree.get_children():
             self.msg_tree.delete(item)
+
+        # Reset message counter
+        self.message_count = 0
+        self.msg_count_label.config(text="Messages: 0")
 
     def refresh_display(self):
         """Refresh all displays"""
