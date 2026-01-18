@@ -1,0 +1,11 @@
+# DC-DC Converter Monitor - Python Dependencies
+
+# CAN bus communication
+python-can>=4.0.0
+cantools>=39.0.0
+
+# Optional dependencies for advanced features
+# matplotlib>=3.5.0  # For advanced data visualization
+# numpy>=1.21.0      # For numerical operations
+
+# Note: No external dependencies needed for basic GUI (uses tkinter from standard library)
